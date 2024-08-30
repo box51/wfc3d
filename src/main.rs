@@ -20,20 +20,19 @@ fn setup(
 ) {
     // circular base
     commands.spawn((PbrBundle {
-        mesh: meshes.add(Circle::new(4.0)),
-        material: materials.add(Color::WHITE),
+        mesh: meshes.add(Circle::new(20.0)),
+        material: materials.add(Color::srgb_u8(25, 190, 55)),
         transform: Transform::from_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
         ..default()
         },
-        // Rotatable { speed: 0.3 }
     ));
     // cube
-    commands.spawn(PbrBundle {
-        mesh: meshes.add(Cuboid::new(1.0, 1.0, 1.0)),
-        material: materials.add(Color::srgb_u8(124, 144, 255)),
-        transform: Transform::from_xyz(0.0, 0.5, 0.0),
-        ..default()
-    });
+    // commands.spawn(PbrBundle {
+    //     mesh: meshes.add(Cuboid::new(1.0, 1.0, 1.0)),
+    //     material: materials.add(Color::srgb_u8(124, 144, 255)),
+    //     transform: Transform::from_xyz(0.0, 0.5, 0.0),
+    //     ..default()
+    // });
     // light
     commands.spawn(PointLightBundle {
         point_light: PointLight {
@@ -50,5 +49,24 @@ fn setup(
         },
         PanOrbitCamera::default(),
     ));
-
+    commands.spawn(SceneBundle {
+        scene : asset_server.load("cube.gltf#Scene0"),
+        transform: Transform::from_xyz(0.0, 0.0, 0.0),
+        ..default()
+    });
+    commands.spawn(SceneBundle {
+        scene : asset_server.load("cube.gltf#Scene0"),
+        transform: Transform::from_xyz(6.0, 0.0, 0.0),
+        ..default()
+    });
+    commands.spawn(SceneBundle {
+        scene : asset_server.load("top.gltf#Scene0"),
+        transform: Transform::from_xyz(0.0, 3.0, 0.0),
+        ..default()
+    });
+    commands.spawn(SceneBundle {
+        scene : asset_server.load("road.gltf#Scene0"),
+        transform: Transform::from_xyz(3.0, 0.0, 0.0),
+        ..default()
+    });
 }
