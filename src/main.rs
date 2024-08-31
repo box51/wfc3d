@@ -1,6 +1,9 @@
-//! A simple 3D scene with light shining over a cube sitting on a plane.
+mod objs;
+mod tile_factory;
+use objs::{Tile, TileType, Position, Bond};
+use tile_factory::create_tile_options;
 
-use bevy::prelude::*;
+use bevy::{prelude::*, reflect::Array};
 use bevy_panorbit_camera::{PanOrbitCamera, PanOrbitCameraPlugin};
 
 // cube side width in pixels
@@ -9,38 +12,6 @@ static WIDTH: u32 = 3;
 const X_DIM: usize = 3;
 const Y_DIM: usize = 3;
 const Z_DIM: usize = 3;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum TileType {
-    Top,
-    Cube,
-    Road,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct Tile {
-    collapsed: bool,
-    tile_type: TileType,
-    entropy: u32,
-}
-
-impl Default for Tile {
-    fn default() -> Self {
-        Tile {
-            collapsed: false,
-            tile_type: TileType::Cube, // Default type
-            entropy: 0,
-        }
-    }
-}
-
-// Define the Position struct
-#[derive(Debug)]
-struct Position {
-    x: f32,
-    y: f32,
-    z: f32,
-}
 
 // Define the function that takes a Tile and a Position as parameters
 fn spawn_tile_at_position(commands: &mut Commands, asset_server: &Res<AssetServer>,
@@ -65,11 +36,15 @@ fn spawn_tile_at_position(commands: &mut Commands, asset_server: &Res<AssetServe
                 });
         }
         TileType::Road => {
-                commands.spawn(SceneBundle {
-                    scene : asset_server.load("road.gltf#Scene0"),
-                    transform: Transform::from_xyz(position.x, position.y, position.z),
-                    ..default()
-                });
+            commands.spawn(SceneBundle {
+                scene: asset_server.load("road.gltf#Scene0"),
+                transform: Transform {
+                    translation: Vec3::new(position.x, position.y, position.z),
+                    rotation: Quat::from_rotation_y(90.0_f32.to_radians()), // Rotate 45 degrees around the Y-axis
+                    scale: Vec3::ONE, // Default scale (no scaling)
+                },
+                ..default()
+            });
         }
         // None => println!("Type: None"),
     }
@@ -97,13 +72,6 @@ fn setup(
         ..default()
         },
     ));
-    // cube
-    // commands.spawn(PbrBundle {
-    //     mesh: meshes.add(Cuboid::new(1.0, 1.0, 1.0)),
-    //     material: materials.add(Color::srgb_u8(124, 144, 255)),
-    //     transform: Transform::from_xyz(0.0, 0.5, 0.0),
-    //     ..default()
-    // });
     // light
     commands.spawn(PointLightBundle {
         point_light: PointLight {
@@ -120,21 +88,31 @@ fn setup(
         },
         PanOrbitCamera::default(),
     ));
-    let default_tile = Tile::default();
+
+    let tile_corpus: [Tile; 3] = create_tile_options();
+    let default_tile: Tile = Tile::default();
     // Initialize the 3D array manually
-    let mut objs_3d: [[[Tile; Z_DIM]; Y_DIM]; X_DIM] = [[[default_tile; Z_DIM]; Y_DIM]; X_DIM];
-    // Use nested loops to set each element to the default_tile
-    for x in 0..X_DIM {
-        for y in 0..Y_DIM {
-            for z in 0..Z_DIM {
-                objs_3d[x][y][z] =  Tile {
-                    collapsed: false,
-                    tile_type: TileType::Road,
-                    entropy: 42,
-                };
-            }
-        }
-    }
+    // Initialize the 3D array
+    let mut objs_3d: Vec<Vec<Vec<Tile>>> = vec![
+        vec![
+            vec![default_tile.clone(); Z_DIM];
+            Y_DIM
+        ];
+        X_DIM
+    ];    // Use nested loops to set each element to the default_tile
+    // for x in 0..X_DIM {
+    //     for y in 0..Y_DIM {
+    //         for z in 0..Z_DIM {
+    //             objs_3d[x][y][z] =  Tile {
+    //                 collapsed: false,
+    //                 tile_type: TileType::Road,
+    //                 entropy: 42,
+    //                 bonds: vec![Bond{id: "face".to_string(), vectdir: [0, 0, 0]}]
+    //                 starter: false
+    //             };
+    //         }
+    //     }
+    // }
 
     // Creating the array
     for x in 0..X_DIM {
