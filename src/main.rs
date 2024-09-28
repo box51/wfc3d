@@ -1,8 +1,8 @@
 mod objs;
 mod tile_factory;
 use objs::{Tile, TileType, Position, Bond};
-use tile_factory::create_tile_options;
-
+use tile_factory::{create_tile_options, select_random_start_tile};
+use rand::Rng;
 use bevy::{prelude::*, reflect::Array};
 use bevy_panorbit_camera::{PanOrbitCamera, PanOrbitCameraPlugin};
 
@@ -90,6 +90,7 @@ fn setup(
     ));
 
     let tile_corpus: [Tile; 3] = create_tile_options();
+
     let default_tile: Tile = Tile::default();
     // Initialize the 3D array manually
     // Initialize the 3D array
@@ -100,6 +101,23 @@ fn setup(
         ];
         X_DIM
     ];    // Use nested loops to set each element to the default_tile
+
+    // Create a random number generator
+    let mut rng = rand::thread_rng();
+
+    // Generate random indices
+    let x = rng.gen_range(0..X_DIM);
+    let y = 0;  // Start at the bottom
+    let z = rng.gen_range(0..Z_DIM);
+
+    // TODO: check if tile xists
+    let start_tile: Tile = select_random_start_tile(&tile_corpus.to_vec());
+    objs_3d[x][y][z] = start_tile.clone();
+    let selected_tile: &mut Tile = &mut objs_3d[x][y][z];
+    selected_tile.collapsed = true;
+
+    //update entropy
+
     // for x in 0..X_DIM {
     //     for y in 0..Y_DIM {
     //         for z in 0..Z_DIM {
@@ -122,7 +140,9 @@ fn setup(
                 let y_cart: f32 = y as f32 * (WIDTH as f32);
                 let z_cart: f32 = z as f32 * (WIDTH as f32);
                 let pos = Position{ x: x_cart, y: y_cart, z: z_cart};
-                spawn_tile_at_position(&mut commands, &asset_server, &objs_3d[x][y][z], &pos)
+                if objs_3d[x][y][z].collapsed {
+                    spawn_tile_at_position(&mut commands, &asset_server, &objs_3d[x][y][z], &pos);
+                }
             }
         }
     }

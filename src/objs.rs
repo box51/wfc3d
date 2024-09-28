@@ -5,13 +5,13 @@ pub enum TileType {
     Road,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Bond {
     pub id: String,
     pub vectdir: [i32; 3]
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Tile {
     pub collapsed: bool,
     pub tile_type: TileType,
