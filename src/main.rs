@@ -1,138 +1,196 @@
-mod objs;
-mod tile_factory;
-use objs::{Tile, TileType, Position, Bond};
-use tile_factory::{create_tile_options, select_random_start_tile};
-use rand::Rng;
+// main.rs
+mod wfc;
+mod tile_types;
+
 use bevy::prelude::*;
 use bevy_panorbit_camera::{PanOrbitCamera, PanOrbitCameraPlugin};
-use std::boxed::Box;
-// cube side width in pixels
-static WIDTH: u32 = 3;
-// final assemble dimension DIMxDIMxDIM
+use wfc::{WFCGrid, Direction, TileType};
+use tile_types::create_tile_types;
+
+// Cube side width in world units
+const TILE_SIZE: f32 = 3.0;
+// Grid dimensions
 const X_DIM: usize = 3;
-const Y_DIM: usize = 3;
-const Z_DIM: usize = 3;
+const Y_DIM: usize = 4;
+const Z_DIM: usize = 5;
 
-// Define the function that takes a Tile and a Position as parameters
-fn spawn_tile_at_position(commands: &mut Commands, asset_server: &Res<AssetServer>,
-                          tile: &Tile, position: &Position) {
-    println!("Processing tile at position ({}, {}, {}):",
-              position.x, position.y, position.z);
-    println!("Collapsed: {}", tile.collapsed);
-
-    match tile.tile_type {
-        TileType::Cube => {
-                commands.spawn(SceneBundle {
-                    scene : asset_server.load("cube.gltf#Scene0"),
-                    transform: Transform::from_xyz(position.x, position.y, position.z),
-                    ..default()
-                });
-        }
-        TileType::Top => {
-                commands.spawn(SceneBundle {
-                    scene : asset_server.load("top.gltf#Scene0"),
-                    transform: Transform::from_xyz(position.x, position.y, position.z),
-                    ..default()
-                });
-        }
-        TileType::Road => {
-            commands.spawn(SceneBundle {
-                scene: asset_server.load("road.gltf#Scene0"),
-                transform: Transform {
-                    translation: Vec3::new(position.x, position.y, position.z),
-                    rotation: Quat::from_rotation_y(90.0_f32.to_radians()), // Rotate 45 degrees around the Y-axis
-                    scale: Vec3::ONE, // Default scale (no scaling)
-                },
-                ..default()
-            });
-        }
-        // None => println!("Type: None"),
-    }
-}
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
-        .add_systems(Startup, setup)
         .add_plugins(PanOrbitCameraPlugin)
+        .add_systems(Startup, setup)
         .run();
 }
 
-/// set up a simple 3D scene
 fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     asset_server: Res<AssetServer>,
 ) {
-    // circular base
-    commands.spawn((PbrBundle {
+    // Ground plane
+    commands.spawn(PbrBundle {
         mesh: meshes.add(Circle::new(20.0)),
-        material: materials.add(Color::srgb_u8(25, 190, 55)),
+        material: materials.add(Color::srgb(0.1, 0.7, 0.2)),
         transform: Transform::from_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
-        ..default()
-        },
-    ));
-    // light
-    commands.spawn(PointLightBundle {
-        point_light: PointLight {
-            shadows_enabled: true,
-            ..default()
-        },
-        transform: Transform::from_xyz(4.0, Y_DIM as f32 * WIDTH as f32 * 1.5, 4.0),
         ..default()
     });
 
-    // camera
+    // Light
+    commands.spawn(PointLightBundle {
+        point_light: PointLight {
+            shadows_enabled: true,
+            intensity: 2000.0,
+            ..default()
+        },
+        transform: Transform::from_xyz(4.0, Y_DIM as f32 * TILE_SIZE * 1.5, 4.0),
+        ..default()
+    });
+
+    // Camera
     commands.spawn((
         Camera3dBundle {
-            transform: Transform::from_xyz(-2.5, Y_DIM as f32 * WIDTH as f32 * 1.5, 9.0).looking_at(Vec3::ZERO, Vec3::Y),
+            transform: Transform::from_xyz(
+                -2.5,
+                Y_DIM as f32 * TILE_SIZE * 1.5,
+                Z_DIM as f32 * TILE_SIZE + 5.0
+            ).looking_at(
+                Vec3::new(
+                    X_DIM as f32 * TILE_SIZE / 2.0,
+                    Y_DIM as f32 * TILE_SIZE / 2.0,
+                    Z_DIM as f32 * TILE_SIZE / 2.0
+                ),
+                Vec3::Y
+            ),
             ..default()
         },
         PanOrbitCamera::default(),
     ));
 
-    // Axes
-    let axis_length = 10.0;
-    let axis_thickness = 0.05;
-
-    let tile_corpus: [Tile; 3] = create_tile_options();
-
-    let default_tile: Tile = Tile::default();
-    // Initialize the 3D array manually
-    let mut objs_3d: Vec<Vec<Vec<Tile>>> = vec![
-        vec![
-            vec![default_tile.clone(); Z_DIM];
-            Y_DIM
-        ];
-        X_DIM
-    ];
-
-    // Create a random number generator
+    // Generate the voxel structure using WFC
+    let tile_types = create_tile_types();
     let mut rng = rand::thread_rng();
+    let mut grid = WFCGrid::new((X_DIM, Y_DIM, Z_DIM), tile_types);
 
-    // Generate random indices
-    let x = rng.gen_range(0..X_DIM);
-    let y = 0;  // Start at the bottom
-    let z = rng.gen_range(0..Z_DIM);
+    if grid.collapse_all(&mut rng) {
+        println!("Successfully generated WFC structure!");
 
-    // TODO: check if tile exists
-    let start_tile: Tile = select_random_start_tile(&tile_corpus.to_vec());
-    objs_3d[x][y][z] = start_tile.clone();
-    let selected_tile: &mut Tile = &mut objs_3d[x][y][z];
-    selected_tile.collapsed = true;
+        // Spawn tiles based on the collapsed grid
+        for ((x, y, z), cell) in &grid.cells {
+            if let Some(tile_id) = cell.collapsed {
+                let tile_type = &grid.tile_types[tile_id];
+                let world_pos = Vec3::new(
+                    *x as f32 * TILE_SIZE,
+                    *y as f32 * TILE_SIZE,
+                    *z as f32 * TILE_SIZE,
+                );
 
-    // Creating the array
-    for x in 0..X_DIM {
-        for y in 0..Y_DIM {
-            for z in 0..Z_DIM {
-                let x_cart: f32 = x as f32 * (WIDTH as f32);
-                let y_cart: f32 = y as f32 * (WIDTH as f32);
-                let z_cart: f32 = z as f32 * (WIDTH as f32);
-                let pos = Position { x: x_cart, y: y_cart, z: z_cart };
-                if objs_3d[x][y][z].collapsed {
-                    spawn_tile_at_position(&mut commands, &asset_server, &objs_3d[x][y][z], &pos);
-                }
+                spawn_tile(
+                    &mut commands,
+                    &asset_server,
+                    &mut meshes,
+                    &mut materials,
+                    tile_type,
+                    world_pos,
+                );
             }
         }
+    } else {
+        println!("Failed to generate valid WFC structure!");
     }
+}
+
+fn spawn_tile(
+    commands: &mut Commands,
+    asset_server: &Res<AssetServer>,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    materials: &mut ResMut<Assets<StandardMaterial>>,
+    tile_type: &TileType,
+    position: Vec3,
+) {
+    match tile_type.visual_type.as_str() {
+        "cube" => {
+            // Always try to load GLTF model first, Bevy will handle missing assets gracefully
+            commands.spawn(SceneBundle {
+                scene: asset_server.load("cube.gltf#Scene0"),
+                transform: Transform::from_translation(position),
+                ..default()
+            });
+        }
+        "corner" => {
+            commands.spawn(SceneBundle {
+                scene: asset_server.load("corner.gltf#Scene0"),
+                transform: Transform::from_translation(position)
+                    .with_rotation(get_rotation_for_connections(&tile_type.connections)),
+                ..default()
+            });
+        }
+        "straight" | "road" => {
+            commands.spawn(SceneBundle {
+                scene: asset_server.load("road.gltf#Scene0"),
+                transform: Transform::from_translation(position)
+                    .with_rotation(get_rotation_for_connections(&tile_type.connections)),
+                ..default()
+            });
+        }
+        "junction" => {
+            commands.spawn(SceneBundle {
+                scene: asset_server.load("junction.gltf#Scene0"),
+                transform: Transform::from_translation(position),
+                ..default()
+            });
+        }
+        "top" => {
+            commands.spawn(SceneBundle {
+                scene: asset_server.load("top.gltf#Scene0"),
+                transform: Transform::from_translation(position),
+                ..default()
+            });
+        }
+        "pillar" => {
+            // Create a vertical pillar with primitives
+            commands.spawn(PbrBundle {
+                mesh: meshes.add(Cuboid::new(TILE_SIZE * 0.3, TILE_SIZE * 0.95, TILE_SIZE * 0.3)),
+                material: materials.add(Color::srgb(0.6, 0.6, 0.7)),
+                transform: Transform::from_translation(position),
+                ..default()
+            });
+        }
+        "empty" => {
+            // Don't spawn anything for empty tiles
+        }
+        _ => {
+            // Default fallback: basic cube
+            commands.spawn(PbrBundle {
+                mesh: meshes.add(Cuboid::new(TILE_SIZE * 0.8, TILE_SIZE * 0.8, TILE_SIZE * 0.8)),
+                material: materials.add(Color::srgb(0.5, 0.5, 0.5)),
+                transform: Transform::from_translation(position),
+                ..default()
+            });
+        }
+    }
+}
+
+// Helper function to determine rotation based on connection types
+fn get_rotation_for_connections(connections: &std::collections::HashMap<Direction, String>) -> Quat {
+    // Determine primary axis based on male/female connections
+    let mut rotation = Quat::IDENTITY;
+
+    // Check which directions have male connectors to determine orientation
+    let has_male_x = connections.get(&Direction::PosX)
+        .map(|c| c == "male")
+        .unwrap_or(false);
+    let has_male_z = connections.get(&Direction::PosZ)
+        .map(|c| c == "male")
+        .unwrap_or(false);
+
+    if has_male_z && !has_male_x {
+        // Rotate 90 degrees around Y axis
+        rotation = Quat::from_rotation_y(std::f32::consts::FRAC_PI_2);
+    } else if has_male_x && has_male_z {
+        // Corner piece - rotate 45 degrees
+        rotation = Quat::from_rotation_y(std::f32::consts::FRAC_PI_4);
+    }
+
+    rotation
 }
