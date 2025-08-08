@@ -3,9 +3,9 @@ mod tile_factory;
 use objs::{Tile, TileType, Position, Bond};
 use tile_factory::{create_tile_options, select_random_start_tile};
 use rand::Rng;
-use bevy::{prelude::*, reflect::Array};
+use bevy::prelude::*;
 use bevy_panorbit_camera::{PanOrbitCamera, PanOrbitCameraPlugin};
-
+use std::boxed::Box;
 // cube side width in pixels
 static WIDTH: u32 = 3;
 // final assemble dimension DIMxDIMxDIM
@@ -81,26 +81,31 @@ fn setup(
         transform: Transform::from_xyz(4.0, Y_DIM as f32 * WIDTH as f32 * 1.5, 4.0),
         ..default()
     });
+
     // camera
-    commands.spawn((Camera3dBundle {
-        transform: Transform::from_xyz(-2.5, Y_DIM as f32 * WIDTH as f32 * 1.5, 9.0).looking_at(Vec3::ZERO, Vec3::Y),
-        ..default()
+    commands.spawn((
+        Camera3dBundle {
+            transform: Transform::from_xyz(-2.5, Y_DIM as f32 * WIDTH as f32 * 1.5, 9.0).looking_at(Vec3::ZERO, Vec3::Y),
+            ..default()
         },
         PanOrbitCamera::default(),
     ));
+
+    // Axes
+    let axis_length = 10.0;
+    let axis_thickness = 0.05;
 
     let tile_corpus: [Tile; 3] = create_tile_options();
 
     let default_tile: Tile = Tile::default();
     // Initialize the 3D array manually
-    // Initialize the 3D array
     let mut objs_3d: Vec<Vec<Vec<Tile>>> = vec![
         vec![
             vec![default_tile.clone(); Z_DIM];
             Y_DIM
         ];
         X_DIM
-    ];    // Use nested loops to set each element to the default_tile
+    ];
 
     // Create a random number generator
     let mut rng = rand::thread_rng();
@@ -110,27 +115,11 @@ fn setup(
     let y = 0;  // Start at the bottom
     let z = rng.gen_range(0..Z_DIM);
 
-    // TODO: check if tile xists
+    // TODO: check if tile exists
     let start_tile: Tile = select_random_start_tile(&tile_corpus.to_vec());
     objs_3d[x][y][z] = start_tile.clone();
     let selected_tile: &mut Tile = &mut objs_3d[x][y][z];
     selected_tile.collapsed = true;
-
-    //update entropy
-
-    // for x in 0..X_DIM {
-    //     for y in 0..Y_DIM {
-    //         for z in 0..Z_DIM {
-    //             objs_3d[x][y][z] =  Tile {
-    //                 collapsed: false,
-    //                 tile_type: TileType::Road,
-    //                 entropy: 42,
-    //                 bonds: vec![Bond{id: "face".to_string(), vectdir: [0, 0, 0]}]
-    //                 starter: false
-    //             };
-    //         }
-    //     }
-    // }
 
     // Creating the array
     for x in 0..X_DIM {
@@ -139,7 +128,7 @@ fn setup(
                 let x_cart: f32 = x as f32 * (WIDTH as f32);
                 let y_cart: f32 = y as f32 * (WIDTH as f32);
                 let z_cart: f32 = z as f32 * (WIDTH as f32);
-                let pos = Position{ x: x_cart, y: y_cart, z: z_cart};
+                let pos = Position { x: x_cart, y: y_cart, z: z_cart };
                 if objs_3d[x][y][z].collapsed {
                     spawn_tile_at_position(&mut commands, &asset_server, &objs_3d[x][y][z], &pos);
                 }
