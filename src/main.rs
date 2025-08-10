@@ -1,11 +1,15 @@
 // main.rs
 mod wfc;
 mod tile_types;
+mod lighting;
+mod debug_axis;  // Add this new module
 
 use bevy::prelude::*;
 use bevy_panorbit_camera::{PanOrbitCamera, PanOrbitCameraPlugin};
 use wfc::{WFCGrid, Direction, TileType};
+use lighting::setup_lighting;
 use tile_types::create_tile_types;
+use debug_axis::spawn_axis_arrows;
 
 // Cube side width in world units
 const TILE_SIZE: f32 = 3.0;
@@ -18,7 +22,7 @@ fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(PanOrbitCameraPlugin)
-        .add_systems(Startup, setup)
+        .add_systems(Startup, (setup, setup_lighting, spawn_axis_arrows))
         .run();
 }
 
@@ -30,23 +34,11 @@ fn setup(
 ) {
     // Ground plane
     commands.spawn(PbrBundle {
-        mesh: meshes.add(Circle::new(20.0)),
+        mesh: meshes.add(Circle::new(40.0)),
         material: materials.add(Color::srgb(0.1, 0.7, 0.2)),
         transform: Transform::from_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
         ..default()
     });
-
-    // Light
-    commands.spawn(PointLightBundle {
-        point_light: PointLight {
-            shadows_enabled: true,
-            intensity: 2000.0,
-            ..default()
-        },
-        transform: Transform::from_xyz(4.0, Y_DIM as f32 * TILE_SIZE * 1.5, 4.0),
-        ..default()
-    });
-
     // Camera
     commands.spawn((
         Camera3dBundle {
@@ -117,14 +109,6 @@ fn spawn_tile(
                 ..default()
             });
         }
-        "corner" => {
-            commands.spawn(SceneBundle {
-                scene: asset_server.load("corner.gltf#Scene0"),
-                transform: Transform::from_translation(position)
-                    .with_rotation(get_rotation_for_connections(&tile_type.connections)),
-                ..default()
-            });
-        }
         "straight" | "road" => {
             commands.spawn(SceneBundle {
                 scene: asset_server.load("road.gltf#Scene0"),
@@ -133,25 +117,9 @@ fn spawn_tile(
                 ..default()
             });
         }
-        "junction" => {
-            commands.spawn(SceneBundle {
-                scene: asset_server.load("junction.gltf#Scene0"),
-                transform: Transform::from_translation(position),
-                ..default()
-            });
-        }
         "top" => {
             commands.spawn(SceneBundle {
                 scene: asset_server.load("top.gltf#Scene0"),
-                transform: Transform::from_translation(position),
-                ..default()
-            });
-        }
-        "pillar" => {
-            // Create a vertical pillar with primitives
-            commands.spawn(PbrBundle {
-                mesh: meshes.add(Cuboid::new(TILE_SIZE * 0.3, TILE_SIZE * 0.95, TILE_SIZE * 0.3)),
-                material: materials.add(Color::srgb(0.6, 0.6, 0.7)),
                 transform: Transform::from_translation(position),
                 ..default()
             });

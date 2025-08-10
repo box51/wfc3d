@@ -1,4 +1,4 @@
-// wfc.rs
+// wfc.rs - Updated with directional connection logic
 use rand::prelude::*;
 use std::collections::{HashMap, HashSet};
 
@@ -51,32 +51,37 @@ pub struct TileType {
 }
 
 impl TileType {
-    pub fn new(id: usize, name: &str, visual_type: &str, connections: HashMap<Direction, String>, weight: f32) -> Self {
-        TileType {
-            id,
-            name: name.to_string(),
-            visual_type: visual_type.to_string(),
-            connections,
-            weight,
-        }
+    pub fn new(id: usize, name: &str, visual_type: &str,
+        connections: HashMap<Direction, String>, weight: f32) -> Self {
+            TileType {
+                id,
+                name: name.to_string(),
+                visual_type: visual_type.to_string(),
+                connections,
+                weight,
+            }
     }
 
     pub fn can_connect(&self, other: &TileType, dir: Direction) -> bool {
+        // If I'm empty and looking up, only accept other empty blocks
+
         let my_conn = &self.connections[&dir];
         let other_conn = &other.connections[&dir.opposite()];
 
         // Connection compatibility rules
-        match (my_conn.as_str(), other_conn.as_str()) {
+        let result = match (my_conn.as_str(), other_conn.as_str()) {
+            ("none", "none") => true, // empty connections are compatible
+
+            // None means no connection allowed
+            ("none", _) | (_, "none") => false,
+
             // Basic connections
             ("flat", "flat") => true,
             ("male", "female") => true,
             ("female", "male") => true,
-            ("universal", _) | (_, "universal") => true,
-            ("none", _) | (_, "none") => false,
 
             // Special connections for roads
             ("road_end", "road_end") => true,
-            ("road_side", "road_side") => false, // Roads don't connect on sides
 
             // Ground connections
             ("ground", "ground") => true,
@@ -84,7 +89,8 @@ impl TileType {
 
             // Same type connections
             _ => my_conn == other_conn,
-        }
+        };
+        result
     }
 }
 
@@ -147,6 +153,7 @@ impl WFCGrid {
     pub fn new(dimensions: (usize, usize, usize), tile_types: Vec<TileType>) -> Self {
         let mut cells = HashMap::new();
 
+        // filling the grid with cells with all tile types as possibilities
         for x in 0..dimensions.0 as i32 {
             for y in 0..dimensions.1 as i32 {
                 for z in 0..dimensions.2 as i32 {
@@ -166,6 +173,7 @@ impl WFCGrid {
     fn propagate(&mut self, start_pos: (i32, i32, i32)) {
         let mut stack = vec![start_pos];
 
+        // local propagation loop to ease O(k) vs O(n) if computing entropy for all cells
         while let Some(pos) = stack.pop() {
             let current_cell = self.cells[&pos].clone();
 
@@ -174,30 +182,42 @@ impl WFCGrid {
             }
 
             let current_tile_id = current_cell.collapsed.unwrap();
+            let current_tile = &self.tile_types[current_tile_id];
 
-            for dir in Direction::all() {
-                let offset = dir.offset();
-                let neighbor_pos = (pos.0 + offset.0, pos.1 + offset.1, pos.2 + offset.2);
+            for dir in Direction::all() {  // Loop through ALL 6 directions (up/down/left/right/forward/back)
+                let offset = dir.offset();  // Get the offset for this direction (e.g., up = (0,1,0))
+                let neighbor_pos = (pos.0 + offset.0, pos.1 + offset.1, pos.2 + offset.2);  // Calculate neighbor position
 
-                if let Some(neighbor) = self.cells.get(&neighbor_pos) {
+                if let Some(neighbor) = self.cells.get(&neighbor_pos) {  // Get the neighbor cell
                     if neighbor.is_collapsed() {
-                        continue;
+                        continue;  // Skip if neighbor already has a fixed tile
                     }
 
+                    // Now we update the neighbor's possibilities based on what we just placed
                     let old_count = neighbor.possibilities.len();
                     let mut valid_possibilities = HashSet::new();
 
-                    for &possible_id in &neighbor.possibilities {
-                        let current_tile = &self.tile_types[current_tile_id];
-                        let possible_tile = &self.tile_types[possible_id];
+                    // iterating over all possibilites of the neighbor (in the begining it will start with all tiles)
+                    for &possible_id in &neighbor.possibilities {  // Check each possible tile for the neighbor
+                        let current_tile = &self.tile_types[current_tile_id];  // The tile we just placed
+                        let possible_tile = &self.tile_types[possible_id];  // A possible tile for neighbor
+
+                        // THE KEY CHECK: Can the current tile connect to this possible neighbor tile?
                         if current_tile.can_connect(possible_tile, dir) {
-                            valid_possibilities.insert(possible_id);
+                            valid_possibilities.insert(possible_id);  // Keep this possibility
                         }
                     }
+                    print!("Valid possibilities for neighbor at {:?}: ", neighbor_pos);
+                    for id in &valid_possibilities {
+                        print!("{} ", self.tile_types[*id].name);
+                    }
+                    println!();
 
+                    // Update the neighbor with only valid possibilities
                     let neighbor_mut = self.cells.get_mut(&neighbor_pos).unwrap();
                     neighbor_mut.possibilities = valid_possibilities;
 
+                    // If we removed some possibilities, add this neighbor to the stack to propagate further
                     if neighbor_mut.possibilities.len() < old_count {
                         if !stack.contains(&neighbor_pos) {
                             stack.push(neighbor_pos);
