@@ -82,6 +82,7 @@ impl TileType {
 
             // Special connections for roads
             ("road_end", "road_end") => true,
+            ("road_cross", "road_cross") => true,
 
             // Ground connections
             ("ground", "ground") => true,
@@ -182,7 +183,6 @@ impl WFCGrid {
             }
 
             let current_tile_id = current_cell.collapsed.unwrap();
-            let current_tile = &self.tile_types[current_tile_id];
 
             for dir in Direction::all() {  // Loop through ALL 6 directions (up/down/left/right/forward/back)
                 let offset = dir.offset();  // Get the offset for this direction (e.g., up = (0,1,0))

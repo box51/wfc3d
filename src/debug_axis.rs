@@ -8,7 +8,7 @@ pub fn spawn_axis_arrows(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     // Offset the entire axis system to avoid overlapping with objects at origin
-    let axis_offset = Vec3::new(-10.0, -5.0, -10.0); // Adjust this to position the axis where you want
+    let axis_offset = Vec3::new(-10.0, 1.0, -10.0); // Adjust this to position the axis where you want
 
     let axis_length = 5.0;
     let axis_radius = 0.1;
@@ -20,7 +20,7 @@ pub fn spawn_axis_arrows(
     commands.spawn(PbrBundle {
         mesh: meshes.add(Cylinder::new(axis_radius, axis_length)),
         material: materials.add(StandardMaterial {
-            base_color: Color::rgb(1.0, 0.0, 0.0),
+            base_color: Color::srgb(1.0, 0.0, 0.0),
             ..default()
         }),
         transform: Transform::from_xyz(
@@ -37,7 +37,7 @@ pub fn spawn_axis_arrows(
             height: arrow_head_height,
         }),
         material: materials.add(StandardMaterial {
-            base_color: Color::rgb(1.0, 0.0, 0.0),
+            base_color: Color::srgb(1.0, 0.0, 0.0),
             ..default()
         }),
         transform: Transform::from_xyz(
@@ -53,7 +53,7 @@ pub fn spawn_axis_arrows(
     commands.spawn(PbrBundle {
         mesh: meshes.add(Cylinder::new(axis_radius, axis_length)),
         material: materials.add(StandardMaterial {
-            base_color: Color::rgb(0.0, 1.0, 0.0),
+            base_color: Color::srgb(0.0, 1.0, 0.0),
             ..default()
         }),
         transform: Transform::from_xyz(
@@ -70,7 +70,7 @@ pub fn spawn_axis_arrows(
             height: arrow_head_height,
         }),
         material: materials.add(StandardMaterial {
-            base_color: Color::rgb(0.0, 1.0, 0.0),
+            base_color: Color::srgb(0.0, 1.0, 0.0),
             ..default()
         }),
         transform: Transform::from_xyz(
@@ -86,7 +86,7 @@ pub fn spawn_axis_arrows(
     commands.spawn(PbrBundle {
         mesh: meshes.add(Cylinder::new(axis_radius, axis_length)),
         material: materials.add(StandardMaterial {
-            base_color: Color::rgb(0.0, 0.0, 1.0),
+            base_color: Color::srgb(0.0, 0.0, 1.0),
             ..default()
         }),
         transform: Transform::from_xyz(
@@ -103,7 +103,7 @@ pub fn spawn_axis_arrows(
             height: arrow_head_height,
         }),
         material: materials.add(StandardMaterial {
-            base_color: Color::rgb(0.0, 0.0, 1.0),
+            base_color: Color::srgb(0.0, 0.0, 1.0),
             ..default()
         }),
         transform: Transform::from_xyz(
@@ -118,7 +118,7 @@ pub fn spawn_axis_arrows(
     commands.spawn(PbrBundle {
         mesh: meshes.add(Sphere::new(0.2)),
         material: materials.add(StandardMaterial {
-            base_color: Color::rgb(1.0, 1.0, 1.0),
+            base_color: Color::srgb(1.0, 1.0, 1.0),
             ..default()
         }),
         transform: Transform::from_xyz(axis_offset.x, axis_offset.y, axis_offset.z),

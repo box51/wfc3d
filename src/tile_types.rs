@@ -22,6 +22,7 @@ pub fn create_tile_types() -> Vec<TileType> {
         1.0,
     ));
 
+
     // 2. Road/Straight piece - connects on two opposite sides
     let mut road_connections = HashMap::new();
     road_connections.insert(Direction::PosX, "flat".to_string());
@@ -35,27 +36,27 @@ pub fn create_tile_types() -> Vec<TileType> {
         "Road",
         "road",
         road_connections,
-        1.2,
+        0.8,
     ));
 
-    // 3. Top piece - pyramid or cap, only connects on bottom
-    let mut top_connections = HashMap::new();
-    top_connections.insert(Direction::PosX, "road_end".to_string());
-    top_connections.insert(Direction::NegX, "road_end".to_string());
-    top_connections.insert(Direction::PosY, "none".to_string());
-    top_connections.insert(Direction::NegY, "flat".to_string());
-    top_connections.insert(Direction::PosZ, "road_end".to_string());
-    top_connections.insert(Direction::NegZ, "road_end".to_string());
+    // 3. Cross piece - pyramid or cap, only connects on bottom
+    let mut cross_connections = HashMap::new();
+    cross_connections.insert(Direction::PosX, "none".to_string());
+    cross_connections.insert(Direction::NegX, "none".to_string());
+    cross_connections.insert(Direction::PosY, "none".to_string());
+    cross_connections.insert(Direction::NegY, "flat".to_string());
+    cross_connections.insert(Direction::PosZ, "none".to_string());
+    cross_connections.insert(Direction::NegZ, "none".to_string());
     tiles.push(TileType::new(
         2,
-        "Top",
+        "Cross",
         "top",
-        top_connections,
+        cross_connections,
         0.3,
     ));
 
     // 4. Empty space - only the bottom connects to flat surfaces
-    let mut empty_connections = HashMap::new();
+    let mut empty_connections: HashMap<Direction, String> = HashMap::new();
     empty_connections.insert(Direction::PosX, "none".to_string());
     empty_connections.insert(Direction::NegX, "none".to_string());
     empty_connections.insert(Direction::PosY, "none".to_string());
@@ -70,29 +71,22 @@ pub fn create_tile_types() -> Vec<TileType> {
         0.2, // Lower weight so structures are more solid
     ));
 
+        // cube variant to be a wall that connects to roads
+    let mut cube_road_conns = HashMap::new();
+
+    cube_road_conns.insert(Direction::PosX, "road_end".to_string());
+    cube_road_conns.insert(Direction::NegX, "road_end".to_string());
+    cube_road_conns.insert(Direction::PosY, "flat".to_string());
+    cube_road_conns.insert(Direction::NegY, "flat".to_string());
+    cube_road_conns.insert(Direction::PosZ, "road_end".to_string());
+    cube_road_conns.insert(Direction::NegZ, "road_end".to_string());
+    tiles.push(TileType::new(
+        4,
+        "Cube Road",
+        "cube",  // Still a cube visually
+        cube_road_conns,
+        1.5,
+    ));
+
     tiles
-}
-
-// Helper function to select a random starting tile
-pub fn select_random_start_tile(tiles: &[TileType]) -> TileType {
-    use rand::prelude::*;
-    let mut rng = thread_rng();
-
-    // Prefer ground-connectable tiles for the start (but not empty tiles)
-    let ground_tiles: Vec<&TileType> = tiles.iter()
-        .filter(|t| t.visual_type != "empty" &&
-                    t.connections.get(&Direction::NegY)
-                        .map(|c| c != "none")
-                        .unwrap_or(false))
-        .collect();
-
-    if !ground_tiles.is_empty() {
-        ground_tiles[rng.gen_range(0..ground_tiles.len())].clone()
-    } else {
-        tiles.iter()
-            .filter(|t| t.visual_type != "empty")
-            .next()
-            .unwrap_or(&tiles[0])
-            .clone()
-    }
 }
